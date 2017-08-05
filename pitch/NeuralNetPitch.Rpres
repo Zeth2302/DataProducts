@@ -1,0 +1,91 @@
+<style>
+.reveal pre code {
+    font-size: 1.3em;
+}
+</style>
+
+Neural Net Explorer Pitch
+========================================================
+author: Brandon Maus
+date: August 4, 2017
+autosize: true
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(ggplot2)
+library(neuralnet)
+library(RColorBrewer)
+source("NeuralNetPitch.R")
+```
+
+Goal
+========================================================
+
+Neural networks are black box style models whose outputs are heavily impacted by their hyperparameters. Different structures can learn different shapes in the data. In general, adding more neurons gives the network more flexibility. Choosing the right number of neurons to fit the data but not overfit can be difficult.
+
+This project aims to develop an intuition for how the number of neurons in the first and second layers effect the final learned model.
+
+Data Fabrication
+========================================================
+
+```{r fabricationBase}
+backgroundGrid <- buildBackgroundGrid()
+plotProbs <- function(n) {
+    probs <- circularProb(backgroundGrid$x, backgroundGrid$y, n)
+    ggplot(aes(x, y, fill = probs), data = backgroundGrid) + geom_raster()
+}
+```
+
+Train and test data were generated using a circular probability distribution centered at the point (5, 5). Noise can be added to smooth out the boundary between positive and negative cases. More noise leads to more overlap between the classes, making the network's job harder.
+
+```{r fabricationFunction, echo = TRUE, eval = FALSE}
+circularProb <- function(x, y, noise) {
+    scaling = 10 / (noise + 1)
+    plogis(-scaling * ( (x - 5)^2 + (y - 5)^2 - 2 ))
+}
+```
+
+```{r fabricationPlots, fig.show='hold', out.width='45%'}
+plotProbs(0) + labs(title = "Probability distribution when noise = 0")
+plotProbs(10) + labs(title = "Probability distribution when noise = 10")
+```
+
+Visualizing Prediction Terrain
+========================================================
+
+To visualize the predictions of the resulting neural network, a grid of (x, y) points are fed through the network to get predicted probabilities (pred below). These are then visualized with ggplot.
+
+```{r vizScaffold, echo = TRUE, eval = FALSE}
+ggplot() + theme_light() + 
+  geom_raster(aes(x, y, fill = pred), 
+              data = backgroundGrid, alpha = 0.75) +
+  scale_fill_gradientn(colors = brewer.pal(4, "RdYlBu"))
+```
+
+
+```{r netVizSample, out.width='55%', fig.align='center'}
+train <- buildData(200, 5, 0)
+netFit <- trainNeuralNet(train, c(3), 5)
+backgroundGrid <- buildBackgroundGrid()
+preds <- neuralnet::compute(netFit, backgroundGrid)
+backgroundGrid <- cbind(backgroundGrid, pred = preds$net.result)
+
+ggplot() + theme_light() +
+    geom_raster(aes(x, y, fill = pred), 
+                data = backgroundGrid, alpha = 0.75) +
+    scale_fill_gradientn(colors = brewer.pal(4, "RdYlBu")) +
+    labs(title = "Example prediction grid from 3 neurons")
+```
+
+References
+========================================================
+
+### Inspiration
+
+[A Neural Network Playground](http://playground.tensorflow.org/)
+
+[ConvnetJS demo: toy 2d classification with 2-layer neural network](http://cs.stanford.edu/people/karpathy/convnetjs/demo/classify2d.html)
+
+### Visualizing a constructed net
+
+[R is my friend: Visualizing neural networks from the nnet package](https://beckmw.wordpress.com/2013/03/04/visualizing-neural-networks-from-the-nnet-package/)
